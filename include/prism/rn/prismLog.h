@@ -48,11 +48,12 @@ inline std::string levelToColor(LogLevel level) {
     default: return "\033[0m";
   }
 }
-
 inline std::string getTimestamp() {
   using namespace std::chrono;
   auto now = system_clock::now();
   auto time = system_clock::to_time_t(now);
+  auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
+
   std::tm tm;
 #if defined(_WIN32)
   localtime_s(&tm, &time);
@@ -61,8 +62,10 @@ inline std::string getTimestamp() {
 #endif
   std::ostringstream oss;
   oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+  oss << "." << std::setfill('0') << std::setw(3) << ms.count();  // 添加毫秒部分
   return oss.str();
 }
+
 
 inline std::string getThreadId() {
   std::ostringstream oss;
@@ -70,12 +73,20 @@ inline std::string getThreadId() {
   return oss.str();
 }
 
+
 inline std::string formatLog(const std::string& msg, const char* file, int line, LogLevel level) {
+  // 只提取文件名
+  std::string filename = file;
+  auto pos = filename.find_last_of("/\\");
+  if (pos != std::string::npos) {
+    filename = filename.substr(pos + 1);
+  }
+
   std::ostringstream oss;
   oss << "[" << getTimestamp() << "]";
   oss << "[" << getThreadId() << "]";
   oss << "[" << levelToString(level) << "]";
-  oss << "[" << file << ":" << line << "] ";
+  oss << "[" << filename << ":" << line << "] ";
   oss << msg;
   return oss.str();
 }
@@ -182,5 +193,16 @@ inline void logToJSAsync(
   prism::rn::logToJSAsync(rt, invoker, __FILE__, __LINE__,                     \
                           prism::rn::LogLevel::Error, FMT_STRING(fmtStr),      \
                           ##__VA_ARGS__)
+
+
+#ifndef NDEBUG
+  #define LOG_DEBUG_F(rt, invoker, fmtStr, ...)                               \
+    prism::rn::logToJSAsync(rt, invoker, __FILE__, __LINE__,                  \
+                            prism::rn::LogLevel::Info, FMT_STRING(fmtStr),    \
+                            ##__VA_ARGS__)
+#else
+  #define LOG_DEBUG_F(rt, invoker, fmtStr, ...)  do {} while(0)
+#endif
+
 
 #endif //PRISM_RN_LOG_H
