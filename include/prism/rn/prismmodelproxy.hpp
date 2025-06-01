@@ -7,189 +7,227 @@
 //#include "prism/rn/prismLog.h"
 //#include <prism/container.hpp>
 
-namespace prism {
-namespace rn {
+namespace prism
+{
+namespace rn
+{
 
-template <typename T>
-class PrismModelProxy ;
+template <typename T> class PrismModelProxy;
 
-}// namespace rn 
-}// namespace prism 
+} // namespace rn
+} // namespace prism
 
-namespace prism {
-namespace utilities {
+namespace prism
+{
+namespace utilities
+{
 
-template<typename T>
-struct extractPrismModelProxyType {
-    using type = T;  // 默认就是原类型
+template <typename T> struct extractPrismModelProxyType
+{
+    using type = T; // 默认就是原类型
 };
 
-template<typename U>
-struct extractPrismModelProxyType<::prism::rn::PrismModelProxy<U>> {
+template <typename U> struct extractPrismModelProxyType<::prism::rn::PrismModelProxy<U>>
+{
     using type = U;
 };
 
-}// namespace utilities
-}// namespace prism
+} // namespace utilities
+} // namespace prism
 
-namespace prism {
-namespace rn {
+namespace prism
+{
+namespace rn
+{
 
-template <typename T>
-class PrismModelProxy : public facebook::jsi::HostObject {
-public:
-    PrismModelProxy(std::shared_ptr<T> instance = std::make_shared<T>()):instance_(instance)
+template <typename T> class PrismModelProxy : public facebook::jsi::HostObject
+{
+  public:
+    PrismModelProxy(std::shared_ptr<T> instance = std::make_shared<T>()) : instance_(instance)
     {
-
     }
     ~PrismModelProxy() override = default;
 
     // Getter for instance_
-    std::shared_ptr<T> instance() const {
+    std::shared_ptr<T> instance() const
+    {
         return instance_;
     }
-    void setInstance(std::shared_ptr<T> instance){
+    void setInstance(std::shared_ptr<T> instance)
+    {
         instance_ = instance;
     }
 
     // Override getProperty to expose properties to JavaScript
-    facebook::jsi::Value get( facebook::jsi::Runtime& rt, const facebook::jsi::PropNameID& name) override 
+    facebook::jsi::Value get(facebook::jsi::Runtime &rt, const facebook::jsi::PropNameID &name) override
     {
         std::string propName = name.utf8(rt);
         bool hasField = false;
 
-        //auto jsinvoke = prism::Container::get()->resolve_object<facebook::react::CallInvoker>();
-        //LOG_INFO_F(rt,jsinvoke, "get property: %s" , propName);
+        // auto jsinvoke = prism::Container::get()->resolve_object<facebook::react::CallInvoker>();
+        // LOG_INFO_F(rt,jsinvoke, "get property: %s" , propName);
 
         facebook::jsi::Value result;
-        prism::reflection::field_do(*this->instance_, propName.c_str(), [&](auto&& field) {
-            using FieldType = std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
-            if constexpr(prism::utilities::is_specialization<FieldType, std::shared_ptr>::value)
+        prism::reflection::field_do(
+            *this->instance_, propName.c_str(),
+            [&](auto &&field)
             {
-                using shareT = prism::utilities::extract_shared_ptr_type<FieldType>::type ;
-                if constexpr(prism::utilities::is_specialization<shareT, ::prism::rn::PrismModelProxy>::value)
+                using FieldType = std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
+                if constexpr (prism::utilities::is_specialization<FieldType, std::shared_ptr>::value)
                 {
-                    using proxyT = prism::utilities::extractPrismModelProxyType<shareT>::type ;
-                    if constexpr(prism::reflection::has_md<proxyT>())
+                    using shareT = prism::utilities::extract_shared_ptr_type<FieldType>::type;
+                    if constexpr (prism::utilities::is_specialization<shareT, ::prism::rn::PrismModelProxy>::value)
                     {
-                        result = ::facebook::jsi::Object::createFromHostObject(rt, field);
+                        using proxyT = prism::utilities::extractPrismModelProxyType<shareT>::type;
+                        if constexpr (prism::reflection::has_md<proxyT>())
+                        {
+                            result = ::facebook::jsi::Object::createFromHostObject(rt, field);
+                        }
                     }
                 }
-            }
-            else if constexpr(prism::utilities::is_specialization<FieldType, std::shared_ptr>::value)
-            {
-                using shareT = prism::utilities::extract_shared_ptr_type<FieldType>::type ;
-                if constexpr(prism::reflection::has_md<shareT>())
+                else if constexpr (prism::utilities::is_specialization<FieldType, std::shared_ptr>::value)
                 {
-                    result = ::facebook::jsi::Object::createFromHostObject(rt, std::make_shared<prism::rn::PrismModelProxy<shareT>>(field));
+                    using shareT = prism::utilities::extract_shared_ptr_type<FieldType>::type;
+                    if constexpr (prism::reflection::has_md<shareT>())
+                    {
+                        result = ::facebook::jsi::Object::createFromHostObject(
+                            rt, std::make_shared<prism::rn::PrismModelProxy<shareT>>(field));
+                    }
                 }
-            }
-            else if constexpr(std::is_same_v<FieldType, std::string>)
-                return facebook::jsi::Value(facebook::jsi::String::createFromUtf8(rt,field));
-            else
-            {
-                result = field;
-            }
-            hasField = true;
-            
-        });
-        if(!hasField)
+                else if constexpr (std::is_same_v<FieldType, std::string>)
+                    return facebook::jsi::Value(facebook::jsi::String::createFromUtf8(rt, field));
+                else
+                {
+                    result = field;
+                }
+                hasField = true;
+            });
+        if (!hasField)
             return facebook::jsi::Value::undefined();
         else
-            return result;;
+            return result;
+        ;
     }
 
-
     template <typename TT>
-    void remove_pointer_set(TT& prismobj,facebook::jsi::Runtime& rt, std::string& name, const facebook::jsi::Value& value)
+    void remove_pointer_set(TT &prismobj, facebook::jsi::Runtime &rt, std::string &name,
+                            const facebook::jsi::Value &value)
     {
-        std::string& propName = name;
+        std::string &propName = name;
 
         using FieldType = std::remove_reference_t<std::remove_reference_t<TT>>;
-        if constexpr (prism::utilities::is_specialization<FieldType, std::shared_ptr>::value||
-                      prism::utilities::is_specialization<FieldType, std::unique_ptr>::value||
-                      prism::utilities::is_specialization<FieldType, std::weak_ptr>::value||
+        if constexpr (prism::utilities::is_specialization<FieldType, std::shared_ptr>::value ||
+                      prism::utilities::is_specialization<FieldType, std::unique_ptr>::value ||
+                      prism::utilities::is_specialization<FieldType, std::weak_ptr>::value ||
                       std::is_pointer_v<FieldType>)
         {
             remove_pointer_set(*prismobj, rt, name, value);
             return;
         }
 
-
-        if (value.isUndefined()) {
+        if (value.isUndefined())
+        {
             // Handle undefined value
-        } else if (value.isNull()) {
+        }
+        else if (value.isNull())
+        {
             // Handle null value
-            prism::reflection::field_do(prismobj, propName.c_str(), [&](auto&& field) {
-            using FieldType = std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
-            if constexpr (prism::utilities::is_specialization<FieldType, std::shared_ptr>::value ||
-                      prism::utilities::is_specialization<FieldType, std::unique_ptr>::value ||
-                      prism::utilities::is_specialization<FieldType, std::weak_ptr>::value ||
-                      std::is_pointer_v<FieldType>) {
-                field = nullptr;
-            }
-            });
-        } else if (value.isBool()) {
+            prism::reflection::field_do(
+                prismobj, propName.c_str(),
+                [&](auto &&field)
+                {
+                    using FieldType = std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
+                    if constexpr (prism::utilities::is_specialization<FieldType, std::shared_ptr>::value ||
+                                  prism::utilities::is_specialization<FieldType, std::unique_ptr>::value ||
+                                  prism::utilities::is_specialization<FieldType, std::weak_ptr>::value ||
+                                  std::is_pointer_v<FieldType>)
+                    {
+                        field = nullptr;
+                    }
+                });
+        }
+        else if (value.isBool())
+        {
             // Use boolValue
             bool boolValue = value.getBool();
-            prism::reflection::field_do(prismobj, propName.c_str(), [&](auto&& field) {
-            using FieldType = std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
-            if constexpr (std::is_same_v<FieldType, bool>) {
-                field = boolValue;
-            }
-            });
-        } else if (value.isNumber()) {
+            prism::reflection::field_do(prismobj, propName.c_str(),
+                                        [&](auto &&field)
+                                        {
+                                            using FieldType =
+                                                std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
+                                            if constexpr (std::is_same_v<FieldType, bool>)
+                                            {
+                                                field = boolValue;
+                                            }
+                                        });
+        }
+        else if (value.isNumber())
+        {
             // Use numberValue
             double numberValue = value.getNumber();
-            prism::reflection::field_do(prismobj, propName.c_str(), [&](auto&& field) {
-            using FieldType = std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
-            if constexpr (std::is_same_v<FieldType, double> ||
-                      std::is_same_v<FieldType, float> ||
-                      std::is_same_v<FieldType, int>) {
-                field = numberValue;
-            }
-            });
-        } else if (value.isString()) {
+            prism::reflection::field_do(
+                prismobj, propName.c_str(),
+                [&](auto &&field)
+                {
+                    using FieldType = std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
+                    if constexpr (std::is_same_v<FieldType, double> || std::is_same_v<FieldType, float> ||
+                                  std::is_same_v<FieldType, int>)
+                    {
+                        field = numberValue;
+                    }
+                });
+        }
+        else if (value.isString())
+        {
             // Use stringValue
             std::string stringValue = value.getString(rt).utf8(rt);
-            prism::reflection::field_do(prismobj, propName.c_str(), [&](auto&& field) {
-            using FieldType = std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
-            if constexpr (std::is_same_v<FieldType, std::string>) {
-                field = stringValue;
-            }
-            });
-        } else if (value.isObject()) {
+            prism::reflection::field_do(prismobj, propName.c_str(),
+                                        [&](auto &&field)
+                                        {
+                                            using FieldType =
+                                                std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
+                                            if constexpr (std::is_same_v<FieldType, std::string>)
+                                            {
+                                                field = stringValue;
+                                            }
+                                        });
+        }
+        else if (value.isObject())
+        {
             // Use objectValue
             facebook::jsi::Object objectValue = value.getObject(rt);
-            prism::reflection::field_do(prismobj, propName.c_str(), [&](auto&& field) {
-            remove_pointer_set(field, rt, propName, value);
-            });
-        } else {
+            prism::reflection::field_do(prismobj, propName.c_str(),
+                                        [&](auto &&field) { remove_pointer_set(field, rt, propName, value); });
+        }
+        else
+        {
             // Handle unexpected type
         }
         // Handle property assignment logic here
     }
 
     // Override setProperty to handle property assignments from JavaScript
-    void set( facebook::jsi::Runtime& rt, const facebook::jsi::PropNameID& name, const facebook::jsi::Value& value) override {
+    void set(facebook::jsi::Runtime &rt, const facebook::jsi::PropNameID &name,
+             const facebook::jsi::Value &value) override
+    {
         std::string propName = name.utf8(rt);
 
-        //auto jsinvoke = prism::Container::get()->resolve_object<facebook::react::CallInvoker>();
-        //LOG_INFO_F(rt,jsinvoke, "set property: %s" , propName);
+        // auto jsinvoke = prism::Container::get()->resolve_object<facebook::react::CallInvoker>();
+        // LOG_INFO_F(rt,jsinvoke, "set property: %s" , propName);
 
-        remove_pointer_set(*this->instance_,rt, propName, value);
+        remove_pointer_set(*this->instance_, rt, propName, value);
     }
 
-    std::vector<facebook::jsi::PropNameID> getPropertyNames( facebook::jsi::Runtime& rt) override 
-    { 
+    std::vector<facebook::jsi::PropNameID> getPropertyNames(facebook::jsi::Runtime &rt) override
+    {
         std::vector<facebook::jsi::PropNameID> propertyNames;
-        prism::reflection::for_each_fields(*this->instance_ ,[&](const char* fname,auto&& _) {
-            propertyNames.push_back(facebook::jsi::PropNameID::forUtf8(rt, std::string(fname)));
-        });
+        prism::reflection::for_each_fields(
+            *this->instance_, [&](const char *fname, auto &&_)
+            { propertyNames.push_back(facebook::jsi::PropNameID::forUtf8(rt, std::string(fname))); });
         return propertyNames;
     }
 
-private:
+  private:
     std::shared_ptr<T> instance_;
 };
 
