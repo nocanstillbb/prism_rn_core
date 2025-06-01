@@ -4,6 +4,32 @@
 #include <jsi/jsi.h>
 #include <memory>
 #include <prism/prism.hpp>
+//#include "prism/rn/prismLog.h"
+//#include <prism/container.hpp>
+
+namespace prism {
+namespace rn {
+
+template <typename T>
+class PrismModelProxy ;
+
+}// namespace rn 
+}// namespace prism 
+
+namespace prism {
+namespace utilities {
+template<typename T>
+struct extractPrismModelProxyType {
+    using type = T;  // 默认就是原类型
+};
+
+template<typename U>
+struct extractPrismModelProxyType<::prism::rn::PrismModelProxy<U>> {
+    using type = U;
+};
+
+} // namespace utilities
+} // namespace prism
 
 namespace prism {
 namespace rn {
@@ -11,11 +37,19 @@ namespace rn {
 template <typename T>
 class PrismModelProxy : public facebook::jsi::HostObject {
 public:
-    PrismModelProxy(facebook::jsi::Runtime& runtime,std::shared_ptr<T> instance):instance_(instance)
+    PrismModelProxy(std::shared_ptr<T> instance = std::make_shared<T>()):instance_(instance)
     {
 
     }
     ~PrismModelProxy() override = default;
+
+    // Getter for instance_
+    std::shared_ptr<T> instance() const {
+        return instance_;
+    }
+    void setInstance(std::shared_ptr<T> instance){
+        instance_ = instance;
+    }
 
     // Override getProperty to expose properties to JavaScript
     facebook::jsi::Value get( facebook::jsi::Runtime& rt, const facebook::jsi::PropNameID& name) override 
@@ -23,10 +57,38 @@ public:
         std::string propName = name.utf8(rt);
         bool hasField = false;
 
+        //auto jsinvoke = prism::Container::get()->resolve_object<facebook::react::CallInvoker>();
+        //LOG_INFO_F(rt,jsinvoke, "get property: %s" , propName);
+
         facebook::jsi::Value result;
         prism::reflection::field_do(*this->instance_, propName.c_str(), [&](auto&& field) {
-            //using FieldType = std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
-            result = field;
+            using FieldType = std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
+            if constexpr(prism::utilities::is_specialization<FieldType, std::shared_ptr>::value)
+            {
+                using shareT = prism::utilities::extract_shared_ptr_type<FieldType>::type ;
+                if constexpr(prism::utilities::is_specialization<shareT, ::prism::rn::PrismModelProxy>::value)
+                {
+                    using proxyT = prism::utilities::extractPrismModelProxyType<shareT>::type ;
+                    if constexpr(prism::reflection::has_md<proxyT>())
+                    {
+                        result = ::facebook::jsi::Object::createFromHostObject(rt, field);
+                    }
+                }
+            }
+            else if constexpr(prism::utilities::is_specialization<FieldType, std::shared_ptr>::value)
+            {
+                using shareT = prism::utilities::extract_shared_ptr_type<FieldType>::type ;
+                if constexpr(prism::reflection::has_md<shareT>())
+                {
+                    result = ::facebook::jsi::Object::createFromHostObject(rt, std::make_shared<prism::rn::PrismModelProxy<shareT>>(field));
+                }
+            }
+            else if constexpr(std::is_same_v<FieldType, std::string>)
+                return facebook::jsi::Value(facebook::jsi::String::createFromUtf8(rt,field));
+            else
+            {
+                result = field;
+            }
             hasField = true;
             
         });
@@ -40,6 +102,8 @@ public:
     template <typename TT>
     void remove_pointer_set(TT& prismobj,facebook::jsi::Runtime& rt, std::string& name, const facebook::jsi::Value& value)
     {
+        std::string& propName = name;
+
         using FieldType = std::remove_reference_t<std::remove_reference_t<TT>>;
         if constexpr (prism::utilities::is_specialization<FieldType, std::shared_ptr>::value||
                       prism::utilities::is_specialization<FieldType, std::unique_ptr>::value||
@@ -50,7 +114,6 @@ public:
             return;
         }
 
-        std::string& propName = name;
 
         if (value.isUndefined()) {
             // Handle undefined value
@@ -109,6 +172,10 @@ public:
     // Override setProperty to handle property assignments from JavaScript
     void set( facebook::jsi::Runtime& rt, const facebook::jsi::PropNameID& name, const facebook::jsi::Value& value) override {
         std::string propName = name.utf8(rt);
+
+        //auto jsinvoke = prism::Container::get()->resolve_object<facebook::react::CallInvoker>();
+        //LOG_INFO_F(rt,jsinvoke, "set property: %s" , propName);
+
         remove_pointer_set(*this->instance_,rt, propName, value);
     }
 
