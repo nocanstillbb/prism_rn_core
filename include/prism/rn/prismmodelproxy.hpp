@@ -18,6 +18,7 @@ class PrismModelProxy ;
 
 namespace prism {
 namespace utilities {
+
 template<typename T>
 struct extractPrismModelProxyType {
     using type = T;  // 默认就是原类型
@@ -28,8 +29,8 @@ struct extractPrismModelProxyType<::prism::rn::PrismModelProxy<U>> {
     using type = U;
 };
 
-} // namespace utilities
-} // namespace prism
+}// namespace utilities
+}// namespace prism
 
 namespace prism {
 namespace rn {
