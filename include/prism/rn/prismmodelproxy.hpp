@@ -106,7 +106,7 @@ template <typename T> class PrismModelProxy : public facebook::jsi::HostObject
                          }
                          else if constexpr (prism::utilities::is_specialization<shareT, ::prism::rn::PrismModelListProxy>::value)
                          {
-                             using proxyT = prism::utilities::extractPrismModelListProxyType<shareT>::type;
+                             //using proxyT = prism::utilities::extractPrismModelListProxyType<shareT>::type;
                              result = ::facebook::jsi::Array::createFromHostObject(rt, field);
                          }
                      }
