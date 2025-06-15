@@ -5,11 +5,13 @@
 #include "prism/rn/prismLog.h"
 #include "prism/rn/prismmodellistproxy.hpp"
 #include "prism/utilities/typeName.hpp"
+#include <iostream>
 #include <jsi/jsi.h>
 #include <memory>
+#include <ostream>
 #include <prism/container.hpp>
 #include <prism/prism.hpp>
-//#include <prism/container.hpp>
+#include <string>
 
 namespace prism
 {
@@ -61,7 +63,11 @@ template <typename T> class PrismModelProxy : public facebook::jsi::HostObject
 {
   public:
     using value_type = T;
-    PrismModelProxy(std::shared_ptr<T> instance = std::make_shared<T>()) : instance_(instance)
+    PrismModelProxy(std::shared_ptr<T> instance) : instance_(instance)
+    {
+    }
+
+    template <typename... Args> PrismModelProxy(Args &&...args) : instance_(std::make_shared<T>(std::forward<Args>(args)...))
     {
     }
     ~PrismModelProxy() override = default;
@@ -81,6 +87,10 @@ template <typename T> class PrismModelProxy : public facebook::jsi::HostObject
     {
         std::string propName = name.utf8(rt);
         bool hasField = false;
+
+        //#ifdef DEBUG
+        //        auto jsinvoke = prism::Container::get()->resolve_object<facebook::react::CallInvoker>();
+        //#endif
 
         facebook::jsi::Value result;
         using namespace prism::reflection;
@@ -106,7 +116,7 @@ template <typename T> class PrismModelProxy : public facebook::jsi::HostObject
                          }
                          else if constexpr (prism::utilities::is_specialization<shareT, ::prism::rn::PrismModelListProxy>::value)
                          {
-                             //using proxyT = prism::utilities::extractPrismModelListProxyType<shareT>::type;
+                             // using proxyT = prism::utilities::extractPrismModelListProxyType<shareT>::type;
                              result = ::facebook::jsi::Array::createFromHostObject(rt, field);
                          }
                      }
@@ -121,10 +131,16 @@ template <typename T> class PrismModelProxy : public facebook::jsi::HostObject
                      hasField = true;
                  });
         if (!hasField)
+        {
+            if (propName == "uuid")
+            {
+                result = facebook::jsi::String::createFromUtf8(rt, std::to_string(reinterpret_cast<long long>(this)));
+                return result;
+            }
             return facebook::jsi::Value::undefined();
+        }
         else
             return result;
-        ;
     }
 
     template <typename TT> void remove_pointer_set(TT &prismobj, facebook::jsi::Runtime &rt, std::string &name, const facebook::jsi::Value &value)
@@ -218,15 +234,13 @@ template <typename T> class PrismModelProxy : public facebook::jsi::HostObject
     {
         std::string propName = name.utf8(rt);
 
-        // auto jsinvoke = prism::Container::get()->resolve_object<facebook::react::CallInvoker>();
-        // LOG_INFO_F(rt,jsinvoke, "set property: %s" , propName);
-
         remove_pointer_set(*this->instance_, rt, propName, value);
     }
 
     std::vector<facebook::jsi::PropNameID> getPropertyNames(facebook::jsi::Runtime &rt) override
     {
         std::vector<facebook::jsi::PropNameID> propertyNames;
+        propertyNames.push_back(facebook::jsi::PropNameID::forUtf8(rt, std::string("uuid")));
         prism::reflection::for_each_fields(*this->instance_, [&](const char *fname, auto &&_) { propertyNames.push_back(facebook::jsi::PropNameID::forUtf8(rt, std::string(fname))); });
         return propertyNames;
     }

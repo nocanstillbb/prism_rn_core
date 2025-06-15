@@ -43,6 +43,9 @@ template <typename T> class PrismModelListProxy : public facebook::jsi::HostObje
     // Override getProperty to expose properties to JavaScript
     facebook::jsi::Value get(facebook::jsi::Runtime &rt, const facebook::jsi::PropNameID &name) override
     {
+        //#ifdef DEBUG
+        //        auto jsinvoke = prism::Container::get()->resolve_object<facebook::react::CallInvoker>();
+        //#endif
         std::string propName = name.utf8(rt);
         if (propName == "list")
         {
