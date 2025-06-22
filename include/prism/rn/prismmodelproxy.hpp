@@ -63,7 +63,7 @@ template <typename T> class PrismModelProxy : public facebook::jsi::HostObject
 {
   public:
     using value_type = T;
-    PrismModelProxy(std::shared_ptr<T> instance) : instance_(instance)
+    PrismModelProxy(std::shared_ptr<T> instance = std::make_shared<T>()) : instance_(instance)
     {
     }
 
@@ -233,8 +233,10 @@ template <typename T> class PrismModelProxy : public facebook::jsi::HostObject
     void set(facebook::jsi::Runtime &rt, const facebook::jsi::PropNameID &name, const facebook::jsi::Value &value) override
     {
         std::string propName = name.utf8(rt);
-
-        remove_pointer_set(*this->instance_, rt, propName, value);
+        if (propName == "notifyUI")
+            this->notifyui_ = std::make_shared<jsi::Function>(value.asObject(rt).asFunction(rt));
+        else
+            remove_pointer_set(*this->instance_, rt, propName, value);
     }
 
     std::vector<facebook::jsi::PropNameID> getPropertyNames(facebook::jsi::Runtime &rt) override
@@ -245,7 +247,16 @@ template <typename T> class PrismModelProxy : public facebook::jsi::HostObject
         return propertyNames;
     }
 
+    void notifyUi(jsi::Runtime &rt)
+    {
+        if (!notifyui_)
+            return;
+        auto r = ::facebook::jsi::Object::createFromHostObject(rt, std::make_shared<prism::rn::PrismModelProxy<T>>(this->instance_));
+        notifyui_->call(rt, r);
+    }
+
   private:
+    std::shared_ptr<jsi::Function> notifyui_ = nullptr;
     std::shared_ptr<T> instance_;
 };
 
