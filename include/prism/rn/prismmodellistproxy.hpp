@@ -57,6 +57,11 @@ template <typename T> class PrismModelListProxy : public facebook::jsi::HostObje
             }
             return arr;
         }
+        else if (propName == "uuid")
+        {
+            facebook::jsi::String result = facebook::jsi::String::createFromUtf8(rt, std::to_string(reinterpret_cast<long long>(this)));
+            return result;
+        }
         else if (propName == "length")
         {
             return facebook::jsi::Value(static_cast<int>(list_->size()));
@@ -71,6 +76,7 @@ template <typename T> class PrismModelListProxy : public facebook::jsi::HostObje
     std::vector<facebook::jsi::PropNameID> getPropertyNames(facebook::jsi::Runtime &rt) override
     {
         std::vector<facebook::jsi::PropNameID> propertyNames;
+        propertyNames.push_back(facebook::jsi::PropNameID::forUtf8(rt, std::string("uuid")));
         propertyNames.push_back(facebook::jsi::PropNameID::forUtf8(rt, std::string("length")));
         propertyNames.push_back(facebook::jsi::PropNameID::forUtf8(rt, std::string("list")));
         return propertyNames;
