@@ -247,12 +247,14 @@ template <typename T> class PrismModelProxy : public facebook::jsi::HostObject
         return propertyNames;
     }
 
-    void notifyUi(jsi::Runtime &rt)
+    void notifyUi(jsi::Runtime *rt)
     {
         if (!notifyui_)
             return;
-        auto r = ::facebook::jsi::Object::createFromHostObject(rt, std::make_shared<prism::rn::PrismModelProxy<T>>(this->instance_));
-        notifyui_->call(rt, r);
+        if (!rt)
+            return;
+        auto r = ::facebook::jsi::Object::createFromHostObject(*rt, std::make_shared<prism::rn::PrismModelProxy<T>>(this->instance_));
+        notifyui_->call(*rt, r);
     }
 
   private:
