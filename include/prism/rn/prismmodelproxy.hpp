@@ -4,14 +4,11 @@
 #include "ReactCommon/CallInvoker.h"
 #include "include/prism/rn/prismLog.h"
 #include "prism/rn/prismmodellistproxy.hpp"
-#include "prism/utilities/typeName.hpp"
 #include <cstddef>
 #include <cstdlib>
-#include <iostream>
 #include <jsi/jsi.h>
 #include <map>
 #include <memory>
-#include <ostream>
 #include <prism/container.hpp>
 #include <prism/prism.hpp>
 #include <string>
@@ -250,22 +247,17 @@ template <typename T> class PrismModelProxy : public facebook::jsi::HostObject
         }
         else if (value.isNumber())
         {
-            auto invoker = prism::Container::get()->resolve_object<facebook::react::CallInvoker>();
 
-            LOG_INFO_F(rt, invoker, "111111");
             // Use numberValue
             double numberValue = value.getNumber();
             prism::reflection::field_do(prismobj, propName.c_str(),
                                         [&](auto &&field)
                                         {
-                                            LOG_INFO_F(rt, invoker, "111112");
                                             using FieldType = std::remove_reference_t<std::remove_reference_t<decltype(field)>>;
                                             if constexpr (std::is_same_v<FieldType, double> || std::is_same_v<FieldType, float> || std::is_same_v<FieldType, int>)
                                             {
-                                                LOG_INFO_F(rt, invoker, "111113,left:{},right{}", field, numberValue);
                                                 if (std::abs(field - numberValue) >= 0.000001)
                                                 {
-                                                    LOG_INFO_F(rt, invoker, "111114");
                                                     field = numberValue;
                                                     this->notifyUi(&rt, name);
                                                 }
